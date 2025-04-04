@@ -1,71 +1,39 @@
 ---
-- name: Build CA with SSL on control node
-  hosts: managed_node  # This playbook will run on the managed node
-  become: yes  # Allow running as root
-  gather_facts: yes
-
+- name: Simple CA Setup on Control Node
+  hosts: control_node
+  become: true
   tasks:
-    - name: Ensure OpenSSL is installed (on managed node)
-      package:
+    - name: Install OpenSSL
+      apt:
         name: openssl
         state: present
+      when: ansible_os_family == "Debian"
 
-    - name: Create a directory for the CA files on managed node
+    - name: Create CA directories
       file:
-        path: "/home/{{ ansible_user }}/ca"
+        path: "/etc/ssl/myCA/{{ item }}"
         state: directory
-        mode: '0700'
+        mode: "{{ '0700' if item == 'private' else '0755' }}"
+      loop:
+        - ""
+        - certs
+        - crl
+        - newcerts
+        - private
 
-    - name: Generate a private key for the CA
-      openssl_privatekey:
-        path: "/home/{{ ansible_user }}/ca/my_ca.key"
-        size: 4096
-        state: present
-
-    - name: Debug ansible_date_time
-      debug:
-        var: ansible_date_time
-
-    - name: Generate a private key for the SSL certificate
-      openssl_privatekey:
-        path: "/home/{{ ansible_user }}/ca/my_ssl.key"
-        size: 2048
-        state: present
-
-    
-    # Transfer the generated files to the control node
-    - name: Transfer CA certificate to control node
+    - name: Create CA files
       copy:
-        src: "/home/{{ ansible_user }}/ca/my_ca.crt"
-        dest: "/etc/ssl/certs/my_ca.crt"
-        owner: root
-        group: root
-        mode: '0644'
-      delegate_to: control_node  # Perform this task on the control node
+        content: "{{ item.content }}"
+        dest: "/etc/ssl/myCA/{{ item.name }}"
+      loop:
+        - { name: "index.txt", content: "" }
+        - { name: "serial", content: "1000" }
 
-    - name: Transfer SSL certificate to control node
-      copy:
-        src: "/home/{{ ansible_user }}/ca/my_ssl.crt"
-        dest: "/etc/ssl/certs/my_ssl.crt"
-        owner: root
-        group: root
-        mode: '0644'
-      delegate_to: control_node  # Perform this task on the control node
-
-    - name: Transfer SSL private key to control node
-      copy:
-        src: "/home/{{ ansible_user }}/ca/my_ssl.key"
-        dest: "/etc/ssl/private/my_ssl.key"
-        owner: root
-        group: root
-        mode: '0600'
-      delegate_to: control_node  # Perform this task on the control node
-
-- name: Reload the service on control node
-  hosts: control_node  # This task will run on the control node
-  become: yes
-  tasks:
-    - name: Reload nginx service (replace with apache2 or other service if needed)
-      service:
-        name: nginx  # Change this to apache2 or another service if needed
-        state: reloaded
+    - name: Generate CA private key and self-signed cert
+      command: >
+        openssl req -x509 -newkey rsa:4096 -sha256 -days 3650
+        -nodes -subj "/C=US/ST=State/L=City/O=Org/CN=ca.example.com"
+        -keyout /etc/ssl/myCA/private/cakey.pem
+        -out /etc/ssl/myCA/certs/cacert.pem
+      args:
+        creates: /etc/ssl/myCA/certs/cacert.pem
