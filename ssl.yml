@@ -52,8 +52,7 @@
         path: "/home/{{ ansible_user }}/ca/my_ssl.crt"
         csr_path: "/home/{{ ansible_user }}/ca/my_ssl.csr"
         privatekey_path: "/home/{{ ansible_user }}/ca/my_ca.key"
-        provider: selfsigned
-        state: present
+        state: present  # No need for provider here
 
     # Transfer the generated files to the control node
     - name: Transfer CA certificate to control node
@@ -83,11 +82,4 @@
         mode: '0600'
       delegate_to: control_node  # Perform this task on the control node
 
-- name: Reload the service on control node
-  hosts: control_node  # This task will run on the control node
-  become: yes
-  tasks:
-    - name: Reload nginx service (replace with apache2 or other service if needed)
-      service:
-        name: nginx  # Change this to apache2 or another service if needed
-        state: reloaded
+- name: Reload the
