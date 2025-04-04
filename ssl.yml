@@ -1,7 +1,7 @@
 ---
 - name: Deploy SSL certs to control node
-  hosts: servers  # This targets the 'servers' group from your inventory
-  gather_facts: yes  # Optional: If you need system facts (like OS version) for your tasks
+  hosts: servers
+  gather_facts: yes
 
   tasks:
     - name: Ensure the directory for SSL certificates exists
@@ -12,21 +12,21 @@
 
     - name: Deploy SSL certificate
       copy:
-        src: /path/to/cert  # Specify the path to your certificate file
-        dest: /etc/ssl/certs/my_cert.crt  # Destination path on the target machine
+        src: /path/to/cert
+        dest: /etc/ssl/certs/my_cert.crt
         owner: root
         group: root
         mode: '0644'
 
     - name: Deploy SSL private key
       copy:
-        src: /path/to/private_key  # Specify the path to your private key file
-        dest: /etc/ssl/private/my_private_key.key  # Destination path on the target machine
+        src: /path/to/private_key
+        dest: /etc/ssl/private/my_private_key.key
         owner: root
         group: root
         mode: '0600'
         
-    - name: Reload the service using the SSL certificate (example: nginx)
+    - name: Reload the service using the SSL certificate
       service:
-        name: nginx  # Replace with your actual service (e.g., apache2, nginx)
+        name: nginx
         state: reloaded
