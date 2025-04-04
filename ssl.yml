@@ -32,20 +32,7 @@
         size: 2048
         state: present
 
-    - name: Generate a certificate signing request (CSR) for the SSL certificate
-      openssl_csr:
-        path: "/home/{{ ansible_user }}/ca/my_ssl.csr"
-        privatekey_path: "/home/{{ ansible_user }}/ca/my_ssl.key"
-        subject: "/C=US/ST=SomeState/L=SomeCity/O=SomeOrg/OU=SomeUnit/CN=localhost"
-        state: present
-
-    - name: Sign the CSR with the CA private key
-      openssl_certificate:
-        path: "/home/{{ ansible_user }}/ca/my_ssl.crt"
-        csr_path: "/home/{{ ansible_user }}/ca/my_ssl.csr"
-        privatekey_path: "/home/{{ ansible_user }}/ca/my_ca.key"
-        state: present  # No need for provider here
-
+    
     # Transfer the generated files to the control node
     - name: Transfer CA certificate to control node
       copy:
