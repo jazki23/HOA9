@@ -26,7 +26,7 @@
       openssl_certificate:
         path: "/home/{{ ansible_user }}/ca/my_ca.crt"
         privatekey_path: "/home/{{ ansible_user }}/ca/my_ca.key"
-        selfsigned: yes
+        provider: selfsigned  # Specify the provider for self-signed certificates
         selfsigned_subject: "/C=US/ST=SomeState/L=SomeCity/O=SomeOrg/OU=SomeUnit/CN=MyCA"
         selfsigned_not_after: "3650d"  # Valid for 10 years
         selfsigned_not_before: "0d"     # Valid immediately
