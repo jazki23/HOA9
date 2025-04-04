@@ -1,6 +1,6 @@
 ---
 - name: Deploy SSL certs to control node
-  hosts: servers
+  hosts: mn1 ansible_host=192.168.56.101 ansible_user=Kier
   gather_facts: yes
 
   tasks:
