@@ -1,0 +1,83 @@
+---
+- name: Generate CA and SSL certs, then deploy to control node
+  hosts: localhost
+  gather_facts: no
+  vars:
+    ca_dir: /tmp/ca
+    ssl_dir: /tmp/ssl
+    common_name: "control-node.example.com"
+  tasks:
+    - name: Create CA directory
+      file:
+        path: "{{ ca_dir }}"
+        state: directory
+
+    - name: Generate private key for CA
+      command: openssl genrsa -out {{ ca_dir }}/ca.key 2048
+      args:
+        creates: "{{ ca_dir }}/ca.key"
+
+    - name: Generate self-signed CA cert
+      command: >
+        openssl req -x509 -new -nodes -key {{ ca_dir }}/ca.key
+        -sha256 -days 3650 -out {{ ca_dir }}/ca.pem
+        -subj "/C=US/ST=CA/L=City/O=MyOrg/CN=MyCA"
+      args:
+        creates: "{{ ca_dir }}/ca.pem"
+
+    - name: Create SSL directory
+      file:
+        path: "{{ ssl_dir }}"
+        state: directory
+
+    - name: Generate private key for server
+      command: openssl genrsa -out {{ ssl_dir }}/server.key 2048
+      args:
+        creates: "{{ ssl_dir }}/server.key"
+
+    - name: Create CSR for server
+      command: >
+        openssl req -new -key {{ ssl_dir }}/server.key
+        -out {{ ssl_dir }}/server.csr
+        -subj "/C=US/ST=CA/L=City/O=MyOrg/CN={{ common_name }}"
+      args:
+        creates: "{{ ssl_dir }}/server.csr"
+
+    - name: Sign server CSR with CA
+      command: >
+        openssl x509 -req -in {{ ssl_dir }}/server.csr
+        -CA {{ ca_dir }}/ca.pem -CAkey {{ ca_dir }}/ca.key
+        -CAcreateserial -out {{ ssl_dir }}/server.crt
+        -days 365 -sha256
+      args:
+        creates: "{{ ssl_dir }}/server.crt"
+
+- name: Deploy SSL certs to control node
+  hosts: control_nodes
+  become: yes
+  vars:
+    ssl_dir: /tmp/ssl
+  tasks:
+    - name: Create SSL directory on control node
+      file:
+        path: /etc/ssl/custom
+        state: directory
+        mode: '0755'
+
+    - name: Copy server key
+      copy:
+        src: "{{ ssl_dir }}/server.key"
+        dest: /etc/ssl/custom/server.key
+        mode: '0600'
+
+    - name: Copy server certificate
+      copy:
+        src: "{{ ssl_dir }}/server.crt"
+        dest: /etc/ssl/custom/server.crt
+        mode: '0644'
+
+    - name: Copy CA certificate
+      copy:
+        src: "{{ ca_dir }}/ca.pem"
+        dest: /etc/ssl/custom/ca.pem
+        mode: '0644'
