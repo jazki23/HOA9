@@ -1,32 +1,89 @@
 ---
-- name: Deploy SSL certs to control node
-  hosts: servers
+- name: Build CA with SSL on control node
+  hosts: managed_node  # This playbook will run on the managed node
+  become: yes  # Allow running as root
   gather_facts: yes
 
   tasks:
-    - name: Ensure the directory for SSL certificates exists
-      file:
-        path: /etc/ssl/certs
-        state: directory
-        mode: '0755'
+    - name: Ensure OpenSSL is installed (on managed node)
+      package:
+        name: openssl
+        state: present
 
-    - name: Deploy SSL certificate
+    - name: Create a directory for the CA files on managed node
+      file:
+        path: "/home/{{ ansible_user }}/ca"
+        state: directory
+        mode: '0700'
+
+    - name: Generate a private key for the CA
+      openssl_privatekey:
+        path: "/home/{{ ansible_user }}/ca/my_ca.key"
+        size: 4096
+        state: present
+
+    - name: Generate a self-signed root certificate for the CA
+      openssl_certificate:
+        path: "/home/{{ ansible_user }}/ca/my_ca.crt"
+        privatekey_path: "/home/{{ ansible_user }}/ca/my_ca.key"
+        subject: "/C=US/ST=SomeState/L=SomeCity/O=SomeOrg/OU=SomeUnit/CN=MyCA"
+        provider: selfsigned
+        state: present
+
+    - name: Generate a private key for the SSL certificate
+      openssl_privatekey:
+        path: "/home/{{ ansible_user }}/ca/my_ssl.key"
+        size: 2048
+        state: present
+
+    - name: Generate a certificate signing request (CSR) for the SSL certificate
+      openssl_csr:
+        path: "/home/{{ ansible_user }}/ca/my_ssl.csr"
+        privatekey_path: "/home/{{ ansible_user }}/ca/my_ssl.key"
+        subject: "/C=US/ST=SomeState/L=SomeCity/O=SomeOrg/OU=SomeUnit/CN=localhost"
+        state: present
+
+    - name: Sign the CSR with the CA private key
+      openssl_certificate:
+        path: "/home/{{ ansible_user }}/ca/my_ssl.crt"
+        csr_path: "/home/{{ ansible_user }}/ca/my_ssl.csr"
+        privatekey_path: "/home/{{ ansible_user }}/ca/my_ca.key"
+        provider: selfsigned
+        state: present
+
+    # Transfer the generated files to the control node
+    - name: Transfer CA certificate to control node
       copy:
-        src: /path/to/certs/my_cert.crt  # Update this path to the correct location of your certificate file
-        dest: /etc/ssl/certs/my_cert.crt
+        src: "/home/{{ ansible_user }}/ca/my_ca.crt"
+        dest: "/etc/ssl/certs/my_ca.crt"
         owner: root
         group: root
         mode: '0644'
+      delegate_to: control_node  # Perform this task on the control node
 
-    - name: Deploy SSL private key
+    - name: Transfer SSL certificate to control node
       copy:
-        src: /path/to/private_key/my_private_key.key  # Update this path to the correct location of your private key file
-        dest: /etc/ssl/private/my_private_key.key
+        src: "/home/{{ ansible_user }}/ca/my_ssl.crt"
+        dest: "/etc/ssl/certs/my_ssl.crt"
+        owner: root
+        group: root
+        mode: '0644'
+      delegate_to: control_node  # Perform this task on the control node
+
+    - name: Transfer SSL private key to control node
+      copy:
+        src: "/home/{{ ansible_user }}/ca/my_ssl.key"
+        dest: "/etc/ssl/private/my_ssl.key"
         owner: root
         group: root
         mode: '0600'
+      delegate_to: control_node  # Perform this task on the control node
 
-    - name: Reload the service using the SSL certificate
+- name: Reload the service on control node
+  hosts: control_node  # This task will run on the control node
+  become: yes
+  tasks:
+    - name: Reload nginx service (replace with apache2 or other service if needed)
       service:
-        name: nginx  # Replace with your actual service (e.g., apache2, nginx)
+        name: nginx  # Change this to apache2 or another service if needed
         state: reloaded
