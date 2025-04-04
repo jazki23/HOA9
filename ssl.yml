@@ -12,7 +12,7 @@
 
     - name: Deploy SSL certificate
       copy:
-        src: /path/to/cert
+        src: /path/to/certs/my_cert.crt  # Update this path to the correct location of your certificate file
         dest: /etc/ssl/certs/my_cert.crt
         owner: root
         group: root
@@ -20,13 +20,13 @@
 
     - name: Deploy SSL private key
       copy:
-        src: /path/to/private_key
+        src: /path/to/private_key/my_private_key.key  # Update this path to the correct location of your private key file
         dest: /etc/ssl/private/my_private_key.key
         owner: root
         group: root
         mode: '0600'
-        
+
     - name: Reload the service using the SSL certificate
       service:
-        name: nginx
+        name: nginx  # Replace with your actual service (e.g., apache2, nginx)
         state: reloaded
