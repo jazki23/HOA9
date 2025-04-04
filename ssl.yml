@@ -23,16 +23,16 @@
         state: present
 
     - name: Generate a self-signed root certificate for the CA
-  openssl_certificate:
-    path: "/home/{{ ansible_user }}/ca/my_ca.crt"
-    privatekey_path: "/home/{{ ansible_user }}/ca/my_ca.key"
-    provider: selfsigned
-    selfsigned_not_after: "3650d"  # Valid for 10 years
-    selfsigned_not_before: "{{ (ansible_date_time.iso8601 | to_datetime | to_string('%Y-%m-%dT%H:%M:%SZ')) | default(lookup('pipe', 'date -u +%Y-%m-%dT%H:%M:%SZ'))) }}"  # Use current date-time
-    selfsigned_create_subject_key_identifier: create_if_not_provided
-    selfsigned_digest: sha256
-    selfsigned_version: 3
-    state: present
+      openssl_certificate:
+        path: "/home/{{ ansible_user }}/ca/my_ca.crt"
+        privatekey_path: "/home/{{ ansible_user }}/ca/my_ca.key"
+        provider: selfsigned
+        selfsigned_not_after: "3650d"  # Valid for 10 years
+        selfsigned_not_before: "{{ (ansible_date_time.iso8601 | to_datetime | to_string('%Y-%m-%dT%H:%M:%SZ')) | default(lookup('pipe', 'date -u +%Y-%m-%dT%H:%M:%SZ'))) }}"  # Use current date-time
+        selfsigned_create_subject_key_identifier: create_if_not_provided
+        selfsigned_digest: sha256
+        selfsigned_version: 3
+        state: present
 
     - name: Generate a private key for the SSL certificate
       openssl_privatekey:
@@ -82,4 +82,11 @@
         mode: '0600'
       delegate_to: control_node  # Perform this task on the control node
 
-- name: Reload the
+- name: Reload the service on control node
+  hosts: control_node  # This task will run on the control node
+  become: yes
+  tasks:
+    - name: Reload nginx service (replace with apache2 or other service if needed)
+      service:
+        name: nginx  # Change this to apache2 or another service if needed
+        state: reloaded
