@@ -1,39 +1,42 @@
 ---
-- name: Simple CA Setup on Control Node
-  hosts: control_node
-  become: true
+- name: Build a CA with SSL on the Control Node
+  hosts: servers
+  become: yes
   tasks:
-    - name: Install OpenSSL
+    - name: Ensure OpenSSL is installed
       apt:
         name: openssl
         state: present
-      when: ansible_os_family == "Debian"
+      tags: openssl
 
-    - name: Create CA directories
+    - name: Create a directory for the CA
       file:
-        path: "/etc/ssl/myCA/{{ item }}"
+        path: "/etc/ssl/myCA"
         state: directory
-        mode: "{{ '0700' if item == 'private' else '0755' }}"
-      loop:
-        - ""
-        - certs
-        - crl
-        - newcerts
-        - private
+        mode: "0755"
+      tags: create_directory
 
-    - name: Create CA files
-      copy:
-        content: "{{ item.content }}"
-        dest: "/etc/ssl/myCA/{{ item.name }}"
-      loop:
-        - { name: "index.txt", content: "" }
-        - { name: "serial", content: "1000" }
-
-    - name: Generate CA private key and self-signed cert
-      command: >
-        openssl req -x509 -newkey rsa:4096 -sha256 -days 3650
-        -nodes -subj "/C=US/ST=State/L=City/O=Org/CN=ca.example.com"
-        -keyout /etc/ssl/myCA/private/cakey.pem
-        -out /etc/ssl/myCA/certs/cacert.pem
+    - name: Generate a private key for the CA
+      command: openssl genrsa -out /etc/ssl/myCA/myCA.key 2048
       args:
-        creates: /etc/ssl/myCA/certs/cacert.pem
+        creates: /etc/ssl/myCA/myCA.key
+      tags: generate_key
+
+    - name: Generate a self-signed CA certificate
+      command: >
+        openssl req -x509 -new -nodes -key /etc/ssl/myCA/myCA.key
+        -sha256 -days 1024 -out /etc/ssl/myCA/myCA.crt
+        -subj "/C=US/ST=State/L=City/O=Organization/OU=OrgUnit/CN=myca.local"
+      args:
+        creates: /etc/ssl/myCA/myCA.crt
+      tags: generate_certificate
+
+    - name: Verify the CA certificate
+      command: openssl x509 -in /etc/ssl/myCA/myCA.crt -text -noout
+      register: ca_cert
+      tags: verify_certificate
+
+    - name: Display the CA certificate details
+      debug:
+        msg: "{{ ca_cert.stdout }}"
+      tags: display_certificate
